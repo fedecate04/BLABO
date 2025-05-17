@@ -261,15 +261,17 @@ if calcular:
         "Renovaciones necesarias": f"{res7['n_renovaciones']:.1f}"
     }
 
-    # Mostrar resultados en pantalla
     for mod, datos in resultados.items():
         st.subheader(mod)
+        with st.expander("📘 Explicación y fórmulas"):
+            st.markdown(explicaciones.get(mod, "Sin explicación disponible."))
+            for formula in ecuaciones.get(mod, []):
+                st.latex(formula)
         for k, v in datos.items():
             st.write(f"• {k}: **{v}**")
 
-    # Generar y descargar PDF
-    pdf = generar_pdf(resultados)
-    st.download_button("📥 Descargar informe PDF", data=pdf, file_name="informe_blabo.pdf", mime="application/pdf")
+    pdf_bytes = generar_pdf_pedagogico(resultados, ecuaciones, explicaciones)
+    st.download_button("📥 Descargar informe PDF pedagógico", data=pdf_bytes, file_name="informe_blabo.pdf", mime="application/pdf")
 
 
 

@@ -1,8 +1,9 @@
 import streamlit as st
 import math
-import unicodedata
 from fpdf import FPDF
 from io import BytesIO
+import unicodedata  
+
 
 # -------------------------------
 # FUNCIONES DE CÁLCULO

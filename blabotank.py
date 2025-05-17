@@ -3,6 +3,7 @@ import math
 from fpdf import FPDF
 from io import BytesIO
 import unicodedata
+pip install matplotlib
 import matplotlib.pyplot as plt
 
 # -------------------------------

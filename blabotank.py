@@ -253,7 +253,6 @@ if calcular:
         "Volumen N₂ [m³]": f"{res6['volumen_N2_m3']:,.0f}",
         "Potencia estimada [kW]": f"{res6['potencia_kW']:.2f}"
     }
-
     m_agua = tiempo_lavado * caudal_agua * 1000
     deltaT = temp_fin - temp_ini
     res7 = calcular_modulo_7(m_agua, 4.18, deltaT, volumen_ventilado, V_tanque)

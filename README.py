@@ -53,20 +53,22 @@ def calcular_modulo_7(m_agua, Cp, deltaT, V_ventilado, V_tanque):
 def generar_pdf(resultados):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 10, "Informe de Simulación - Sistema BLABO®", ln=True, align="C")
-    pdf.set_font("Arial", "", 12)
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Informe de Simulación – Sistema BLABO®", ln=True, align="C")
+    pdf.ln(10)
 
-    for titulo, datos in resultados.items():
-        pdf.ln(5)
+    for modulo, datos in resultados.items():
         pdf.set_font("Arial", "B", 12)
-        pdf.cell(0, 10, f"{titulo}", ln=True)
+        pdf.set_fill_color(200, 220, 255)
+        pdf.cell(0, 10, modulo, ln=True, fill=True)
         pdf.set_font("Arial", "", 11)
         for key, val in datos.items():
-            pdf.cell(0, 8, f"{key}: {val}", ln=True)
+            pdf.cell(0, 8, f"• {key}: {val}", ln=True)
+        pdf.ln(4)
 
     buffer = BytesIO()
-    pdf.output(buffer)
+    pdf.output(buffer, 'S').encode('latin1')
+    buffer.seek(0)
     return buffer
 
 # -------------------------------
@@ -74,7 +76,7 @@ def generar_pdf(resultados):
 # -------------------------------
 
 st.set_page_config(page_title="Simulador BLABO®", layout="wide")
-st.title("🛢️ Simulador de Limpieza de Tanques – Sistema BLABO®")
+st.markdown("<h1 style='text-align: center;'>🛢️ Simulador de Limpieza de Tanques – Sistema BLABO®</h1>", unsafe_allow_html=True)
 
 with st.form("formulario"):
     st.sidebar.header("🔧 Parámetros de Entrada")
@@ -106,11 +108,10 @@ with st.form("formulario"):
     tiempo_lavado = st.sidebar.number_input("Tiempo de lavado [h]", value=6.0)
     caudal_agua = st.sidebar.number_input("Caudal de agua [m³/h]", value=5.0)
     volumen_ventilado = st.sidebar.number_input("Volumen ventilado [m³/h]", value=100000.0)
-    calcular = st.form_submit_button("Calcular y generar PDF")
+    calcular = st.form_submit_button("🧮 Calcular y generar PDF")
 
 if calcular:
     resultados = {}
-
     res1 = calcular_modulo_1(V_tanque, densidad_lodo)
     masa_total = res1["masa_total_lodo"]
     resultados["🔹 Módulo 1 – Succión"] = {"Masa total de lodo [kg]": f"{masa_total:,.0f}"}
@@ -166,9 +167,10 @@ if calcular:
         for k, v in datos.items():
             st.write(f"• {k}: **{v}**")
 
-    # Generar PDF
+    # Generar y descargar PDF
     pdf = generar_pdf(resultados)
-    st.download_button("📥 Descargar informe PDF", data=pdf, file_name="informe_blabo.pdf")
+    st.download_button("📥 Descargar informe PDF", data=pdf, file_name="informe_blabo.pdf", mime="application/pdf")
+
 
 
 

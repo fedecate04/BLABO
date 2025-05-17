@@ -3,27 +3,15 @@ import math
 from fpdf import FPDF
 from io import BytesIO
 import unicodedata
-
-# Estilo visual
-st.set_page_config(page_title="Simulador BLABO®", layout="wide")
-st.markdown("""
-<style>
-    .stApp { background-color: #2c2f33; color: white; }
-    .stSidebar .sidebar-content { background-color: #23272a; }
-    h1, h2, h3, .stMarkdown { color: white; }
-    .stButton > button {
-        background-color: #7289da;
-        color: white;
-        font-weight: bold;
-        border-radius: 6px;
-    }
-</style>
-""", unsafe_allow_html=True)
+import matplotlib.pyplot as plt
 
 # -------------------------------
 # CONFIGURACION VISUAL
 # -------------------------------
 st.set_page_config(page_title="Simulador BLABO®", layout="wide")
+
+# Simulador de Limpieza de Tanques - Sistema BLABO® (versión mejorada)
+
 st.markdown("""
 <style>
     .stApp { background-color: #2c2f33; color: white; }
@@ -64,10 +52,12 @@ def calcular_modulo_4b(R, rpm):
     omega = 2 * math.pi * rpm / 60
     aceleracion = R * omega**2
     RCF = aceleracion / 9.81
+    fuerza_m = aceleracion  # a usar con m luego si se desea
     return {
         "omega_rad_s": omega,
         "aceleracion_m_s2": aceleracion,
-        "RCF": RCF
+        "RCF": RCF,
+        "fuerza_por_kg": aceleracion  # N/kg equivalente a m * a si se conoce m
     }
 
 def calcular_modulo_5(rho_a, rho_o, g, r, mu):
@@ -129,6 +119,30 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
     pdf.set_font("Arial", "I", 8)
     pdf.cell(0, 10, safe_str("Simulador BLABO® – UTN-FRN – Generado automáticamente"), 0, 0, "C")
     return pdf.output(dest="S").encode("latin-1", "ignore")
+
+# -------------------------------
+# GRAFICO DE ENERGIA POR MODULO
+# -------------------------------
+def graficar_consumos(resultados):
+    modulos = []
+    consumos = []
+    for k, v in resultados.items():
+        for param, val in v.items():
+            if "energía" in param.lower() or "potencia" in param.lower():
+                try:
+                    valor = float(val.replace(",", "").split()[0])
+                    modulos.append(k)
+                    consumos.append(valor)
+                except:
+                    pass
+    if modulos:
+        fig, ax = plt.subplots()
+        ax.bar(modulos, consumos, color='#00bcd4')
+        ax.set_ylabel("Energía / Potencia [kW]")
+        ax.set_title("Consumo energético por módulo")
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        st.pyplot(fig)
 
 # -------------------------------
 # GRAFICO DE ENERGIA POR MODULO

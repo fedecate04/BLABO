@@ -91,6 +91,85 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
     pdf_bytes = pdf.output(dest="S").encode("latin1", "ignore")
     return pdf_bytes
 
+# -------------------------------
+# EXPLICACIONES PEDAGÓGICAS POR MÓDULO
+# -------------------------------
+
+explicaciones = {
+    "🔹 Módulo 1 – Succión": (
+        "Se calcula la masa total de lodo que hay en el tanque, multiplicando el volumen ocupado por el lodo por su densidad. "
+        "Este valor representa la cantidad total de residuos a tratar en el proceso."
+    ),
+    "🔹 Módulo 2 – Recirculación": (
+        "Se realiza un balance energético para calentar el fluido de recirculación. Además, se calcula el reparto de sólidos "
+        "entre el flujo underflow (hacia decanter) y el overflow (hacia boquillas), en función de la eficiencia de corte del sistema."
+    ),
+    "🔹 Módulo 3 – Boquillas": (
+        "Se estima la energía requerida para calentar el lodo a través de boquillas. También se calcula el volumen de kerosene necesario "
+        "para la disolución de hidrocarburos pesados en función de la masa de lodo procesada."
+    ),
+    "🔹 Módulo 4 – Decanter": (
+        "Se determina el diámetro mínimo de partículas que pueden ser separadas por el decanter utilizando una fórmula basada en la "
+        "sedimentación centrífuga. También se calcula el tiempo de residencia necesario para una separación efectiva."
+    ),
+    "🔹 Módulo 4B – Centrífuga": (
+        "Se calcula la aceleración centrífuga generada en la centrífuga, valor fundamental para evaluar la eficiencia de separación."
+    ),
+    "🔹 Módulo 5 – Desnatado": (
+        "Se estima la velocidad de ascenso de gotas de aceite en agua utilizando la ley de Stokes, lo cual permite evaluar la eficiencia "
+        "del módulo de separación por gravedad (skimming)."
+    ),
+    "🔹 Módulo 6 – Inertización": (
+        "Se calcula el volumen total de nitrógeno requerido para inertizar el tanque en función del volumen libre y la cantidad de renovaciones deseadas. "
+        "También se estima la potencia requerida para dicha operación."
+    ),
+    "🔹 Módulo 7 – Lavado y Ventilación": (
+        "Se realiza un balance energético para calentar el agua de lavado desde la temperatura inicial hasta la final. Además, se calcula "
+        "el número de renovaciones necesarias para ventilar completamente el volumen del tanque."
+    )
+}
+
+# -------------------------------
+# ECUACIONES UTILIZADAS POR MÓDULO
+# -------------------------------
+
+ecuaciones = {
+    "🔹 Módulo 1 – Succión": [
+        r"M_{lodo} = V_{lodo} \times \rho_{lodo}"
+    ],
+    "🔹 Módulo 2 – Recirculación": [
+        r"Q = \dot{m}_{fluido} \cdot C_p \cdot \Delta T",
+        r"\dot{m}_{fluido} = Q_{recirc} \cdot \rho_{fluido}",
+        r"\dot{m}_{underflow} = \dot{m}_{s\u00f3lidos} \cdot \frac{\eta}{100}",
+        r"\dot{m}_{overflow} = \dot{m}_{s\u00f3lidos} - \dot{m}_{underflow}"
+    ],
+    "🔹 Módulo 3 – Boquillas": [
+        r"Q = \dot{m}_{lodo} \cdot C_p \cdot \Delta T",
+        r"V_{kerosene} = \dot{m}_{lodo} \cdot \alpha",
+        r"(donde\ \alpha = 1.2\ L/kg)"
+    ],
+    "🔹 Módulo 4 – Decanter": [
+        r"d_{lim} = \sqrt{ \frac{18 \mu \ln(R_o / R_i)}{(\rho_s - \rho_f) \cdot \omega^2 \cdot R_m^2} }",
+        r"t_{res} = \frac{V}{\dot{m} / \rho_f}"
+    ],
+    "🔹 Módulo 4B – Centrífuga": [
+        r"\omega = \frac{2\pi \cdot RPM}{60}",
+        r"a = R \cdot \omega^2"
+    ],
+    "🔹 Módulo 5 – Desnatado": [
+        r"v = \frac{2}{9} \cdot \frac{(\rho_{agua} - \rho_{aceite}) \cdot g \cdot r^2}{\mu}"
+    ],
+    "🔹 Módulo 6 – Inertización": [
+        r"V_{total} = V_{libre} \cdot n_{renovaciones}",
+        r"P = V_{total} \cdot C_{esp}"
+    ],
+    "🔹 Módulo 7 – Lavado y Ventilación": [
+        r"Q = m_{agua} \cdot C_p \cdot \Delta T",
+        r"n_{renovaciones} = \frac{V_{ventilado}}{V_{tanque}}"
+    ]
+}
+
+
 
 # -------------------------------
 # INTERFAZ STREAMLIT

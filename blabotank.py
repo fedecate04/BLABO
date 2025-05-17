@@ -47,29 +47,50 @@ def calcular_modulo_7(m_agua, Cp, deltaT, V_ventilado, V_tanque):
     return {"Q_kJ": Q, "n_renovaciones": renov}
 
 # -------------------------------
-# PDF GENERATOR
+# LIMPIEZA DE TEXTO
 # -------------------------------
 
-def generar_pdf(resultados):
+def limpiar_texto(texto):
+    if isinstance(texto, str):
+        texto = texto.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
+        texto = texto.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
+        return unicodedata.normalize("NFKD", texto).encode("latin-1", "ignore").decode("latin-1")
+    return texto
+
+# -------------------------------
+# GENERADOR DE PDF PEDAGÓGICO
+# -------------------------------
+
+def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
     pdf = FPDF()
     pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "Informe de Simulación – Sistema BLABO®", ln=True, align="C")
     pdf.ln(10)
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, limpiar_texto("Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo del proceso."))
+    pdf.ln(5)
 
     for modulo, datos in resultados.items():
         pdf.set_font("Arial", "B", 12)
         pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, modulo, ln=True, fill=True)
+        pdf.cell(0, 10, limpiar_texto(modulo), ln=True, fill=True)
+        pdf.set_font("Arial", "I", 11)
+        pdf.multi_cell(0, 8, limpiar_texto(explicaciones.get(modulo, "Sin explicación disponible.")))
+        pdf.ln(1)
+        pdf.set_font("Arial", "", 11)
+        for eq in ecuaciones.get(modulo, []):
+            pdf.multi_cell(0, 8, limpiar_texto(eq))
+        pdf.ln(2)
         pdf.set_font("Arial", "", 11)
         for key, val in datos.items():
-            pdf.cell(0, 8, f"• {key}: {val}", ln=True)
-        pdf.ln(4)
+            pdf.cell(0, 8, limpiar_texto(f"- {key}: {val}"), ln=True)
+        pdf.ln(3)
 
-    buffer = BytesIO()
-    pdf.output(buffer, 'S').encode('latin1')
-    buffer.seek(0)
-    return buffer
+    pdf_bytes = pdf.output(dest="S").encode("latin1", "ignore")
+    return pdf_bytes
+
 
 # -------------------------------
 # INTERFAZ STREAMLIT

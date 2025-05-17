@@ -262,7 +262,7 @@ if calcular:
         "Renovaciones necesarias": f"{res7['n_renovaciones']:.1f}"
     }
 
-        for mod, datos in resultados.items():
+            for mod, datos in resultados.items():
         st.subheader(mod)
         with st.expander("📘 Explicación y fórmulas"):
             st.markdown(explicaciones.get(mod, "Sin explicación disponible."))
@@ -271,7 +271,7 @@ if calcular:
         for k, v in datos.items():
             st.write(f"• {k}: **{v}**")
 
-            pdf_bytes = BytesIO()
+    pdf_bytes = BytesIO()
     pdf_bytes.write(generar_pdf_pedagogico(resultados, ecuaciones, explicaciones))
     pdf_bytes.seek(0)
             

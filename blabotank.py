@@ -21,47 +21,138 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# FUNCIONES DE CÁLCULO
+# CONFIGURACION VISUAL
 # -------------------------------
+st.set_page_config(page_title="Simulador BLABO®", layout="wide")
+st.markdown("""
+<style>
+    .stApp { background-color: #2c2f33; color: white; }
+    .stSidebar .sidebar-content { background-color: #23272a; }
+    h1, h2, h3, .stMarkdown { color: white; }
+    .stButton > button {
+        background-color: #7289da;
+        color: white;
+        font-weight: bold;
+        border-radius: 6px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-def calcular_modulo_1(volumen_lodo_m3, densidad_lodo_kg_m3):
-    return {"masa_total_lodo": volumen_lodo_m3 * densidad_lodo_kg_m3}
+# -------------------------------
+# FUNCIONES DE CALCULO
+# -------------------------------
+def calcular_modulo_1(V, rho):
+    return {"masa_total_lodo": V * rho}
 
-def calcular_modulo_2(Q_m3h, densidad_fluido_kg_m3, Cp_kJ_kgK, T_ini, T_fin, masa_solidos_kg_h, eficiencia_corte_pct):
-    deltaT = T_fin - T_ini
-    m_fluido_kg_h = Q_m3h * densidad_fluido_kg_m3
-    Q_kJ_h = m_fluido_kg_h * Cp_kJ_kgK * deltaT
-    m_underflow = masa_solidos_kg_h * eficiencia_corte_pct / 100
-    m_overflow = masa_solidos_kg_h - m_underflow
-    return {"Q_kJ_h": Q_kJ_h, "m_underflow": m_underflow, "m_overflow": m_overflow}
+def calcular_modulo_2(Q, rho, Cp, Ti, Tf, m_sol, eta):
+    deltaT = Tf - Ti
+    m_fluido = Q * rho
+    QkJ = m_fluido * Cp * deltaT
+    under = m_sol * eta / 100
+    over = m_sol - under
+    return {"Q_kJ_h": QkJ, "m_underflow": under, "m_overflow": over}
 
-def calcular_modulo_3(m_kg_h, Cp_kJ_kgK, deltaT_C):
-    Q_kJ_h = m_kg_h * Cp_kJ_kgK * deltaT_C
-    V_kerosene_L = m_kg_h * 1.2
-    return {"m_disl": m_kg_h, "Q_kJ_h": Q_kJ_h, "V_kerosene_L": V_kerosene_L}
+def calcular_modulo_3(m, Cp, dT):
+    return {"Q_kJ_h": m * Cp * dT, "V_kerosene_L": m * 1.2}
 
-def calcular_modulo_4(mu, rho_s, rho_f, omega, Ro, Ri, Rm, m_kg_h, vol_m3):
-    d_lim = math.sqrt((18 * mu * math.log(Ro / Ri)) / ((rho_s - rho_f) * omega**2 * Rm**2))
-    t_res = vol_m3 / (m_kg_h / rho_f)
+def calcular_modulo_4(mu, rhos, rhof, omega, Ro, Ri, Rm, m, vol):
+    d_lim = math.sqrt((18 * mu * math.log(Ro / Ri)) / ((rhos - rhof) * omega**2 * Rm**2))
+    t_res = vol / (m / rhof)
     return {"d_lim_m": d_lim, "t_res_h": t_res}
 
-def calcular_modulo_4b(radio_m, rpm):
+def calcular_modulo_4b(R, rpm):
     omega = 2 * math.pi * rpm / 60
-    return {"aceleracion_m_s2": radio_m * omega**2}
+    aceleracion = R * omega**2
+    RCF = aceleracion / 9.81
+    return {
+        "omega_rad_s": omega,
+        "aceleracion_m_s2": aceleracion,
+        "RCF": RCF
+    }
 
-def calcular_modulo_5(rho_agua, rho_aceite, g, r, mu):
-    v = (2 / 9) * ((rho_agua - rho_aceite) * g * r**2) / mu
+def calcular_modulo_5(rho_a, rho_o, g, r, mu):
+    v = (2 / 9) * ((rho_a - rho_o) * g * r**2) / mu
     return {"vel_ascenso_m_s": v}
 
-def calcular_modulo_6(V_libre, C_esp, n_renov):
-    V = V_libre * n_renov
-    P = V * C_esp
-    return {"volumen_N2_m3": V, "potencia_kW": P}
+def calcular_modulo_6(V, Cesp, n):
+    Vtot = V * n
+    return {"volumen_N2_m3": Vtot, "potencia_kW": Vtot * Cesp}
 
-def calcular_modulo_7(m_agua, Cp, deltaT, V_ventilado, V_tanque):
+def calcular_modulo_7(m_agua, Cp, deltaT, Vvent, Vtanq):
     Q = m_agua * Cp * deltaT
-    renov = V_ventilado / V_tanque
+    renov = Vvent / Vtanq
     return {"Q_kJ": Q, "n_renovaciones": renov}
+
+# -------------------------------
+# FUNCIONES AUXILIARES
+# -------------------------------
+def limpiar_texto(texto):
+    if isinstance(texto, str):
+        texto = texto.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
+        texto = texto.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
+        return unicodedata.normalize("NFKD", texto).encode("latin-1", "ignore").decode("latin-1")
+    return texto
+
+def safe_str(x):
+    try:
+        return limpiar_texto(str(x))
+    except:
+        return ""
+
+def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, safe_str("Informe de Simulación – Sistema BLABO®"), ln=True, align="C")
+    pdf.ln(10)
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, safe_str("Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."))
+    pdf.ln(5)
+
+    for modulo, datos in resultados.items():
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_fill_color(200, 220, 255)
+        pdf.cell(0, 10, safe_str(modulo), ln=True, fill=True)
+        pdf.set_font("Arial", "I", 11)
+        pdf.multi_cell(0, 8, safe_str(explicaciones.get(modulo, "Sin explicación disponible.")))
+        pdf.ln(1)
+        pdf.set_font("Arial", "", 11)
+        for eq in ecuaciones.get(modulo, []):
+            pdf.multi_cell(0, 8, safe_str(eq))
+        pdf.ln(2)
+        for key, val in datos.items():
+            pdf.cell(0, 8, safe_str(f"- {key}: {val}"), ln=True)
+        pdf.ln(3)
+
+    pdf.set_y(-15)
+    pdf.set_font("Arial", "I", 8)
+    pdf.cell(0, 10, safe_str("Simulador BLABO® – UTN-FRN – Generado automáticamente"), 0, 0, "C")
+    return pdf.output(dest="S").encode("latin-1", "ignore")
+
+# -------------------------------
+# GRAFICO DE ENERGIA POR MODULO
+# -------------------------------
+def graficar_consumos(resultados):
+    modulos = []
+    consumos = []
+    for k, v in resultados.items():
+        for param, val in v.items():
+            if "energía" in param.lower() or "potencia" in param.lower():
+                try:
+                    valor = float(val.replace(",", "").split()[0])
+                    modulos.append(k)
+                    consumos.append(valor)
+                except:
+                    pass
+    if modulos:
+        fig, ax = plt.subplots()
+        ax.bar(modulos, consumos, color='#00bcd4')
+        ax.set_ylabel("Energía / Potencia [kW]")
+        ax.set_title("Consumo energético por módulo")
+        plt.xticks(rotation=45, ha="right")
+        plt.tight_layout()
+        st.pyplot(fig)
 
 # -------------------------------
 # FUNCIONES AUXILIARES

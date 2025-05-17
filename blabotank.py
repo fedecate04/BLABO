@@ -268,12 +268,13 @@ if calcular:
             st.markdown(explicaciones.get(mod, "Sin explicación disponible."))
             for formula in ecuaciones.get(mod, []):
                 st.latex(formula)
-        for k, v in datos.items():
-        st.write(f"• {k}: **{v}**")
+                for k, v in datos.items():
+            st.write(f"• {k}: **{v}**")
 
-    pdf_bytes = BytesIO()
-            pdf_bytes.write(generar_pdf_pedagogico(resultados, ecuaciones, explicaciones))
-            pdf_bytes.seek(0)
+        pdf_bytes = BytesIO()
+    pdf_bytes.write(generar_pdf_pedagogico(resultados, ecuaciones, explicaciones))
+    pdf_bytes.seek(0)
+            
 
 
 

@@ -134,8 +134,8 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
     pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automáticamente"), 0, 0, "C")
 
     try:
-        pdf_bytes = pdf.output(dest="S").encode("latin-1", "replace")
-        return pdf_bytes
+        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="replace")
+        return BytesIO(pdf_bytes).getvalue()
     except Exception as e:
         fallback = FPDF()
         fallback.add_page()

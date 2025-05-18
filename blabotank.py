@@ -32,7 +32,7 @@ hr {
 
 # Logo y diagrama en interfaz
 st.image("logoutn.png", width=120)
-st.image("diagramadeflujo.png", caption="Diagrama del sistema de limpieza automatizada BLABO®", use_column_width=True)
+st.image("diagrama de flujo.png", caption="Diagrama del sistema de limpieza automatizada BLABO®", use_column_width=True)
 
 st.markdown("""
 <h1 style='text-align: center;'>🚓 Simulador Profesional de Limpieza de Tanques - Sistema BLABO®</h1>
@@ -190,7 +190,7 @@ if st.sidebar.button("📊 Ejecutar simulación"):
             pdf.add_page()
             pdf.set_font("Arial", "B", 14)
             pdf.cell(0, 10, "Diagrama del Sistema BLABO®", ln=True, align="C")
-            pdf.image("diagramadeflujo.png", x=10, y=30, w=190)
+            pdf.image("diagrama de flujo.png", x=10, y=30, w=190)
         except:
             pass
 

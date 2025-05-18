@@ -1,436 +1,194 @@
+# Simulador Profesional de Limpieza de Tanques - Sistema BLABO®
+# Autor: Federico Catereniuc | UTN-FRN
+# Desarrollado para tesis de Ingeniería Química
+
 import streamlit as st
 import math
-from fpdf import FPDF
 from io import BytesIO
-import unicodedata
-
+from fpdf import FPDF
 
 # -------------------------------
-# CONFIGURACION VISUAL
+# CONFIGURACIÓN VISUAL Y ESTILO
 # -------------------------------
-st.set_page_config(page_title="Simulador BLABO®", layout="wide")
-
-# Simulador de Limpieza de Tanques - Sistema BLABO® (versión mejorada)
-
+st.set_page_config(page_title="Simulador Profesional BLABO", layout="wide")
 st.markdown("""
 <style>
-    .stApp { background-color: #2c2f33; color: white; }
-    .stSidebar .sidebar-content { background-color: #23272a; }
-    h1, h2, h3, .stMarkdown { color: white; }
-    .stButton > button {
-        background-color: #7289da;
-        color: white;
-        font-weight: bold;
-        border-radius: 6px;
-    }
+.stApp { background-color: #1e1e1e; color: white; font-family: 'Arial'; }
+.stSidebar .sidebar-content { background-color: #111827; }
+h1, h2, h3, .stMarkdown, .stCaption { color: #ffffff; }
+.stButton > button {
+    background-color: #4f46e5;
+    color: white;
+    font-weight: bold;
+    border-radius: 8px;
+    padding: 0.5em 1em;
+}
+hr {
+    margin-top: 1em;
+    margin-bottom: 1em;
+    border-color: #4f46e5;
+}
 </style>
 """, unsafe_allow_html=True)
 
+st.image("diagramadeflujo.png", caption="Diagrama del sistema de limpieza automatizada BLABO®", use_column_width=True)
+
+st.markdown("""
+<h1 style='text-align: center;'>🚓 Simulador Profesional de Limpieza de Tanques - Sistema BLABO®</h1>
+<p style='text-align: center;'>Aplicación interactiva para balance de masa y energía con fines pedagógicos</p>
+<p style='text-align: justify;'>Este simulador fue desarrollado como herramienta académica para comprender el funcionamiento físico y térmico del sistema BLABO®, empleado en la limpieza automatizada de tanques de crudo. Cada módulo representa una etapa del proceso industrial, con parámetros configurables, fórmulas reales y resultados explicados en términos técnicos. El objetivo es que tanto estudiantes como profesionales puedan interpretar la operación y balance de cada equipo involucrado.</p>
+<hr>
+""", unsafe_allow_html=True)
+
 # -------------------------------
-# FUNCIONES DE CALCULO
+# FUNCIONES DE CÁLCULO
 # -------------------------------
-def calcular_modulo_1(V, rho):
-    return {"masa_total_lodo": V * rho}
+def calcular_masa_total_lodo(V_tanque, H_lodo, densidad):
+    return V_tanque * (H_lodo / 20), V_tanque * (H_lodo / 20) * densidad
 
-def calcular_modulo_2(Q, rho, Cp, Ti, Tf, m_sol, eta):
-    deltaT = Tf - Ti
-    m_fluido = Q * rho
-    QkJ = m_fluido * Cp * deltaT
-    under = m_sol * eta / 100
-    over = m_sol - under
-    return {"Q_kJ_h": QkJ, "m_underflow": under, "m_overflow": over}
+def calcular_energia_calentamiento(m, Cp, Ti, Tf):
+    return m * Cp * (Tf - Ti)
 
-def calcular_modulo_3(m, Cp, dT):
-    return {"Q_kJ_h": m * Cp * dT, "V_kerosene_L": m * 1.2}
+def calcular_separacion(m_solidos, eficiencia):
+    under = m_solidos * eficiencia / 100
+    return under, m_solidos - under
 
-def calcular_modulo_4(mu, rhos, rhof, omega, Ro, Ri, Rm, m, vol):
-    d_lim = math.sqrt((18 * mu * math.log(Ro / Ri)) / ((rhos - rhof) * omega**2 * Rm**2))
-    t_res = vol / (m / rhof)
-    return {"d_lim_m": d_lim, "t_res_h": t_res}
+def calcular_diametro_corte_hidrociclon(mu, rhop, rhof, deltaP, d):
+    K = 18 * mu / ((rhop - rhof) * deltaP)
+    return math.sqrt(K) * d
 
-def calcular_modulo_4b(R, rpm):
+def calcular_flujo_vapor(Q_kJ, lambda_v):
+    return Q_kJ / lambda_v
+
+def calcular_residencia_decanter(V, Q):
+    return V / Q if Q else float('inf')
+
+def calcular_RCF(r, rpm):
     omega = 2 * math.pi * rpm / 60
-    aceleracion = R * omega**2
-    RCF = aceleracion / 9.81
-    fuerza_m = aceleracion  # a usar con m luego si se desea
-    return {
-        "omega_rad_s": omega,
-        "aceleracion_m_s2": aceleracion,
-        "RCF": RCF,
-        "fuerza_por_kg": aceleracion  # N/kg equivalente a m * a si se conoce m
-    }
+    a = r * omega**2
+    return a / 9.81, a
 
-def calcular_modulo_5(rho_a, rho_o, g, r, mu):
-    v = (2 / 9) * ((rho_a - rho_o) * g * r**2) / mu
-    return {"vel_ascenso_m_s": v}
-
-def calcular_modulo_6(V, Cesp, n):
-    Vtot = V * n
-    return {"volumen_N2_m3": Vtot, "potencia_kW": Vtot * Cesp}
-
-def calcular_modulo_7(m_agua, Cp, deltaT, Vvent, Vtanq):
-    Q = m_agua * Cp * deltaT
-    renov = Vvent / Vtanq
-    return {"Q_kJ": Q, "n_renovaciones": renov}
+def calcular_stokes(rho_f, rho_p, g, r, mu):
+    return (2 / 9) * ((rho_p - rho_f) * g * r**2) / mu
 
 # -------------------------------
-# FUNCIONES AUXILIARES
+# PARÁMETROS DE ENTRADA
 # -------------------------------
-def limpiar_texto(texto):
-    if isinstance(texto, str):
-        texto = texto.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
-        texto = texto.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
-        return unicodedata.normalize("NFKD", texto).encode("latin-1", "ignore").decode("latin-1")
-    return texto
+st.sidebar.header("🔧 Parámetros de Entrada")
 
-def safe_str(x):
-    try:
-        return limpiar_texto(str(x))
-    except:
-        return ""
+V_tanque = st.sidebar.number_input("Volumen del tanque [m³]", value=10000.0)
+H_lodo = st.sidebar.slider("Altura de lodo [m]", 0.0, 20.0, 4.0)
+densidad_lodo = st.sidebar.number_input("Densidad del lodo [kg/m³]", value=950.0)
 
-def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
-    def limpiar_para_pdf(x):
-        try:
-            if isinstance(x, str):
-                return limpiar_texto(x)
-            return limpiar_texto(str(x))
-        except Exception:
-            return "?"
+Ti = st.sidebar.number_input("Temperatura inicial [°C]", value=20.0)
+Tf = st.sidebar.number_input("Temperatura final [°C]", value=80.0)
+Cp_lodo = st.sidebar.number_input("Cp del lodo [kJ/kg·K]", value=2.1)
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, limpiar_para_pdf("Informe de Simulación - Sistema BLABO"), ln=True, align="C")
-    pdf.ln(10)
-    pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 8, limpiar_para_pdf(
-        "Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."
-    ))
-    pdf.ln(5)
+sol_inorg = st.sidebar.number_input("Sólidos inorgánicos [%]", value=10.0)
+sol_org = st.sidebar.number_input("Sólidos orgánicos [%]", value=5.0)
+eficiencia_corte = st.sidebar.number_input("Eficiencia ciclones [%]", value=95.0)
 
-    for modulo, datos in resultados.items():
-        pdf.set_font("Arial", "B", 12)
-        pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, limpiar_para_pdf(modulo), ln=True, fill=True)
+mu = st.sidebar.number_input("Viscosidad lodo [Pa·s]", value=0.1)
+rhop = st.sidebar.number_input("Densidad partículas [kg/m³]", value=2650.0)
+rhof = st.sidebar.number_input("Densidad fluido [kg/m³]", value=900.0)
+deltaP = st.sidebar.number_input("ΔP ciclón [Pa]", value=150000.0)
+D_ciclon = st.sidebar.number_input("Diámetro ciclón [m]", value=0.1)
 
-        pdf.set_font("Arial", "I", 11)
-        explicacion = explicaciones.get(modulo, "Sin explicación disponible.")
-        pdf.multi_cell(0, 8, limpiar_para_pdf(explicacion))
-        pdf.ln(1)
+lambda_v = st.sidebar.number_input("Calor latente vapor [kJ/kg]", value=2257.0)
+Q_decanter = st.sidebar.number_input("Caudal al decanter [m³/h]", value=15.0)
+V_decanter = st.sidebar.number_input("Volumen útil decanter [m³]", value=8.0)
 
-        pdf.set_font("Arial", "", 11)
-        for eq in ecuaciones.get(modulo, []):
-            pdf.multi_cell(0, 8, limpiar_para_pdf(eq))
-        pdf.ln(2)
+rpm = st.sidebar.number_input("RPM centrífuga", value=5000)
+r = st.sidebar.number_input("Radio centrífuga [m]", value=0.15)
 
-        for key, val in datos.items():
-            pdf.cell(0, 8, limpiar_para_pdf(f"- {key}: {val}"), ln=True)
-        pdf.ln(3)
-
-    pdf.set_y(-15)
-    pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automáticamente"), 0, 0, "C")
-
-    try:
-        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="replace")
-        return BytesIO(pdf_bytes).getvalue()
-    except Exception as e:
-        fallback = FPDF()
-        fallback.add_page()
-        fallback.set_font("Arial", "B", 12)
-        fallback.cell(0, 10, "Error al generar el PDF original.", ln=True)
-        fallback.cell(0, 10, f"Detalle: {str(e)}", ln=True)
-        return fallback.output(dest="S").encode("latin-1", "replace")
+r_gota = st.sidebar.number_input("Radio gota aceite [m]", value=30e-6)
+rho_agua = st.sidebar.number_input("Densidad agua [kg/m³]", value=1000.0)
+rho_aceite = st.sidebar.number_input("Densidad aceite [kg/m³]", value=850.0)
+mu_agua = st.sidebar.number_input("Viscosidad agua [Pa·s]", value=0.001)
 
 # -------------------------------
-# GRAFICO DE ENERGIA POR MODULO
+# CÁLCULOS
 # -------------------------------
-def graficar_consumos(resultados):
-    import pandas as pd
-    data = []
+if st.sidebar.button("📊 Ejecutar simulación"):
+    resultados = {}
+    explicaciones = {}
+
+    V_lodo, m_lodo = calcular_masa_total_lodo(V_tanque, H_lodo, densidad_lodo)
+    resultados["Masa total de lodo"] = f"{m_lodo:,.0f} kg"
+    explicaciones["Masa total de lodo"] = "Cálculo por volumen y densidad."
+
+    Q = calcular_energia_calentamiento(m_lodo, Cp_lodo, Ti, Tf)
+    resultados["Energía de calentamiento"] = f"{Q / 1000:.2f} kW"
+    explicaciones["Energía de calentamiento"] = "Energía para calentar el lodo (Q = m·Cp·ΔT)."
+
+    Fv = calcular_flujo_vapor(Q, lambda_v)
+    resultados["Flujo de vapor"] = f"{Fv:,.1f} kg/h"
+    explicaciones["Flujo de vapor"] = "Vapor necesario en H-01 / H-02 para calefacción."
+
+    m_solidos = m_lodo * (sol_inorg + sol_org) / 100
+    under, over = calcular_separacion(m_solidos, eficiencia_corte)
+    resultados["Underflow (decanter)"] = f"{under:,.0f} kg"
+    resultados["Overflow (boquillas)"] = f"{over:,.0f} kg"
+    explicaciones["Separación por ciclones"] = "Corte de sólidos entre under y overflow."
+
+    d50 = calcular_diametro_corte_hidrociclon(mu, rhop, rhof, deltaP, D_ciclon)
+    resultados["d₅₀ ciclón"] = f"{d50 * 1e6:.2f} µm"
+    explicaciones["d₅₀ ciclón"] = "Diámetro de partícula separable (hidrociclón)."
+
+    t_res = calcular_residencia_decanter(V_decanter, Q_decanter)
+    resultados["Residencia decanter"] = f"{t_res:.2f} h"
+    explicaciones["Residencia decanter"] = "Tiempo necesario para sedimentación efectiva."
+
+    rcf, a = calcular_RCF(r, rpm)
+    resultados["RCF centrífuga"] = f"{rcf:.1f} g"
+    resultados["Aceleración centrífuga"] = f"{a:.0f} m/s²"
+    explicaciones["Centrífuga"] = "Separación por fuerza centrífuga."
+
+    v_stokes = calcular_stokes(rho_agua, rho_aceite, 9.81, r_gota, mu_agua)
+    resultados["Velocidad de ascenso aceite"] = f"{v_stokes*1000:.4f} mm/s"
+    explicaciones["Skimming"] = "Velocidad de separación por flotación (ley de Stokes)."
+
+    st.subheader("📈 Resultados de simulación")
     for k, v in resultados.items():
-        for param, val in v.items():
-            if "energía" in param.lower() or "potencia" in param.lower():
-                try:
-                    valor = float(val.replace(",", "").split()[0])
-                    data.append({"Módulo": k, "Consumo_kW": valor})
-                except:
-                    pass
-    if data:
-        df = pd.DataFrame(data).set_index("Módulo")
-        st.bar_chart(df)
+        st.write(f"**{k}:** {v}")
 
-# -------------------------------
-# LIMPIEZA DE TEXTO
-# -------------------------------
+    with st.expander("📘 Explicaciones por módulo"):
+        for k, v in explicaciones.items():
+            st.markdown(f"**{k}:** {v}")
 
-def limpiar_texto(texto):
-    if isinstance(texto, str):
-        texto = texto.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
-        texto = texto.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
-        return unicodedata.normalize("NFKD", texto).encode("latin-1", "ignore").decode("latin-1")
-    return texto
-
-# -------------------------------
-# GENERADOR DE PDF PEDAGÓGICO
-# -------------------------------
-
-def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
-    def limpiar_para_pdf(x):
-        if isinstance(x, str):
-            x = x.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
-            x = x.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
-            return unicodedata.normalize("NFKD", x).encode("latin-1", "ignore").decode("latin-1")
-        return str(x)
-
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, limpiar_para_pdf("Informe de Simulación - Sistema BLABO"), ln=True, align="C")
-    pdf.ln(10)
-
-    pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 8, limpiar_para_pdf(
-        "Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."
-    ))
-    pdf.ln(5)
-
-    for modulo, datos in resultados.items():
-        pdf.set_font("Arial", "B", 12)
-        pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, limpiar_para_pdf(modulo), ln=True, fill=True)
-
-        pdf.set_font("Arial", "I", 11)
-        explicacion = explicaciones.get(modulo, "Sin explicación disponible.")
-        pdf.multi_cell(0, 8, limpiar_para_pdf(explicacion))
-        pdf.ln(1)
-
+    # -------------------------------
+    # EXPORTACIÓN A PDF
+    # -------------------------------
+    def generar_pdf(resultados, explicaciones):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "Informe de Simulación - Sistema BLABO®", ln=True, align="C")
+        pdf.ln(10)
         pdf.set_font("Arial", "", 11)
-        for eq in ecuaciones.get(modulo, []):
-            pdf.multi_cell(0, 8, limpiar_para_pdf(eq))
-        pdf.ln(2)
+        pdf.multi_cell(0, 8, "Este informe presenta los resultados obtenidos de la simulación del sistema BLABO®, incluyendo análisis energéticos, mecánicos y separativos para cada módulo del proceso.")
 
-        for key, val in datos.items():
-            pdf.cell(0, 8, limpiar_para_pdf(f"- {key}: {val}"), ln=True)
-        pdf.ln(3)
+        for k, v in resultados.items():
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, k, ln=True)
+            pdf.set_font("Arial", "", 11)
+            pdf.cell(0, 8, f"Resultado: {v}", ln=True)
+            if k in explicaciones:
+                pdf.multi_cell(0, 8, f"Explicación: {explicaciones[k]}")
+            pdf.ln(2)
 
-    pdf.set_y(-15)
-    pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automáticamente"), 0, 0, "C")
+        pdf.set_y(-15)
+        pdf.set_font("Arial", "I", 8)
+        pdf.cell(0, 10, "Simulador BLABO - UTN-FRN", 0, 0, "C")
 
-    try:
-        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="ignore")
-        return BytesIO(pdf_bytes).getvalue()
-    except Exception as e:
-        fallback = FPDF()
-        fallback.add_page()
-        fallback.set_font("Arial", "B", 12)
-        fallback.cell(0, 10, "Error al generar el PDF original.", ln=True)
-        fallback.cell(0, 10, f"Detalle: {str(e)}", ln=True)
-        return fallback.output(dest="S").encode("latin-1", "replace")
+        return BytesIO(pdf.output(dest="S").encode("latin1", "ignore"))
 
-
-# -------------------------------
-# EXPLICACIONES PEDAGÓGICAS POR MÓDULO
-# -------------------------------
-
-explicaciones = {
-    "🔹 Módulo 1 – Succión": (
-        "Se calcula la masa total de lodo que hay en el tanque, multiplicando el volumen ocupado por el lodo por su densidad. "
-        "Este valor representa la cantidad total de residuos a tratar en el proceso."
-    ),
-    "🔹 Módulo 2 – Recirculación": (
-        "Se realiza un balance energético para calentar el fluido de recirculación. Además, se calcula el reparto de sólidos "
-        "entre el flujo underflow (hacia decanter) y el overflow (hacia boquillas), en función de la eficiencia de corte del sistema."
-    ),
-    "🔹 Módulo 3 – Boquillas": (
-        "Se estima la energía requerida para calentar el lodo a través de boquillas. También se calcula el volumen de kerosene necesario "
-        "para la disolución de hidrocarburos pesados en función de la masa de lodo procesada."
-    ),
-    "🔹 Módulo 4 – Decanter": (
-        "Se determina el diámetro mínimo de partículas que pueden ser separadas por el decanter utilizando una fórmula basada en la "
-        "sedimentación centrífuga. También se calcula el tiempo de residencia necesario para una separación efectiva."
-    ),
-    "🔹 Módulo 4B – Centrífuga": (
-        "Se calcula la aceleración centrífuga generada en la centrífuga, valor fundamental para evaluar la eficiencia de separación."
-    ),
-    "🔹 Módulo 5 – Desnatado": (
-        "Se estima la velocidad de ascenso de gotas de aceite en agua utilizando la ley de Stokes, lo cual permite evaluar la eficiencia "
-        "del módulo de separación por gravedad (skimming)."
-    ),
-    "🔹 Módulo 6 – Inertización": (
-        "Se calcula el volumen total de nitrógeno requerido para inertizar el tanque en función del volumen libre y la cantidad de renovaciones deseadas. "
-        "También se estima la potencia requerida para dicha operación."
-    ),
-    "🔹 Módulo 7 – Lavado y Ventilación": (
-        "Se realiza un balance energético para calentar el agua de lavado desde la temperatura inicial hasta la final. Además, se calcula "
-        "el número de renovaciones necesarias para ventilar completamente el volumen del tanque."
+    st.download_button(
+        label="📥 Descargar informe PDF",
+        data=generar_pdf(resultados, explicaciones),
+        file_name="informe_blabo.pdf",
+        mime="application/pdf"
     )
-}
-
-# -------------------------------
-# ECUACIONES UTILIZADAS POR MÓDULO
-# -------------------------------
-
-ecuaciones = {
-    "🔹 Módulo 1 – Succión": [
-        r"M_{lodo} = V_{lodo} \times \rho_{lodo}"
-    ],
-    "🔹 Módulo 2 – Recirculación": [
-        r"Q = \dot{m}_{fluido} \cdot C_p \cdot \Delta T",
-        r"\dot{m}_{fluido} = Q_{recirc} \cdot \rho_{fluido}",
-        r"\dot{m}_{underflow} = \dot{m}_{s\u00f3lidos} \cdot \frac{\eta}{100}",
-        r"\dot{m}_{overflow} = \dot{m}_{s\u00f3lidos} - \dot{m}_{underflow}"
-    ],
-    "🔹 Módulo 3 – Boquillas": [
-        r"Q = \dot{m}_{lodo} \cdot C_p \cdot \Delta T",
-        r"V_{kerosene} = \dot{m}_{lodo} \cdot \alpha",
-        r"(donde\ \alpha = 1.2\ L/kg)"
-    ],
-    "🔹 Módulo 4 – Decanter": [
-        r"d_{lim} = \sqrt{ \frac{18 \mu \ln(R_o / R_i)}{(\rho_s - \rho_f) \cdot \omega^2 \cdot R_m^2} }",
-        r"t_{res} = \frac{V}{\dot{m} / \rho_f}"
-    ],
-    "🔹 Módulo 4B – Centrífuga": [
-        r"\omega = \frac{2\pi \cdot RPM}{60}",
-        r"a = R \cdot \omega^2"
-    ],
-    "🔹 Módulo 5 – Desnatado": [
-        r"v = \frac{2}{9} \cdot \frac{(\rho_{agua} - \rho_{aceite}) \cdot g \cdot r^2}{\mu}"
-    ],
-    "🔹 Módulo 6 – Inertización": [
-        r"V_{total} = V_{libre} \cdot n_{renovaciones}",
-        r"P = V_{total} \cdot C_{esp}"
-    ],
-    "🔹 Módulo 7 – Lavado y Ventilación": [
-        r"Q = m_{agua} \cdot C_p \cdot \Delta T",
-        r"n_{renovaciones} = \frac{V_{ventilado}}{V_{tanque}}"
-    ]
-}
-
-
-# -------------------------------
-# INTERFAZ STREAMLIT
-# -------------------------------
-
-st.markdown("<h1 style='text-align: center;'>🛢️ Simulador de Limpieza de Tanques – Sistema BLABO®</h1>", unsafe_allow_html=True)
-
-with st.form("formulario"):
-    with st.sidebar.expander("📦 Parámetros del tanque"):
-        V_tanque = st.number_input("Capacidad del tanque [m³]", value=10000.0)
-        H_lodo = st.number_input("Altura de lodo [m]", value=4.0)
-        densidad_lodo = st.number_input("Densidad del lodo [kg/m³]", value=950.0)
-    with st.sidebar.expander("🔥 Térmicos y composición"):
-        temp_ini = st.number_input("Temperatura inicial [°C]", value=20.0)
-        temp_fin = st.number_input("Temperatura final [°C]", value=80.0)
-        sol_inorg_pct = st.number_input("Sólidos inorgánicos [%]", value=10.0)
-        sol_org_pct = st.number_input("Sólidos orgánicos [%]", value=5.0)
-    with st.sidebar.expander("♻️ Recirculación y boquillas"):
-        Q_recirc = st.number_input("Caudal recirculación [m³/h]", value=100.0)
-        Cp_aceite = st.number_input("Cp aceite [kJ/kg·K]", value=2.1)
-        eficiencia_corte = st.number_input("Eficiencia ciclones [%]", value=95.0)
-        Cp_lodo = st.number_input("Cp lodo [kJ/kg·K]", value=2.5)
-        deltaT_boquillas = st.number_input("ΔT boquillas [°C]", value=40.0)
-    with st.sidebar.expander("⚙️ Equipos de separación"):
-        rpm_tornillo = st.number_input("RPM tornillo", value=20)
-        mu_lodo = st.number_input("Viscosidad del lodo [Pa·s]", value=0.1)
-        rho_s = st.number_input("Densidad sólidos [kg/m³]", value=2650)
-        rho_f = st.number_input("Densidad fluido [kg/m³]", value=900)
-        rpm_centrifuga = st.number_input("RPM centrífuga", value=5000)
-        radio_centrifuga = st.number_input("Radio centrífuga [m]", value=0.15)
-    with st.sidebar.expander("💧 Separación y lavado"):
-        radio_gota = st.number_input("Radio de gota [m]", value=25e-6)
-        mu_agua = st.number_input("Viscosidad agua [Pa·s]", value=0.001)
-        rho_agua = st.number_input("Densidad agua [kg/m³]", value=1000)
-        rho_aceite = st.number_input("Densidad aceite [kg/m³]", value=850)
-        tiempo_lavado = st.number_input("Tiempo de lavado [h]", value=6.0)
-        caudal_agua = st.number_input("Caudal de agua [m³/h]", value=5.0)
-        volumen_ventilado = st.number_input("Volumen ventilado [m³/h]", value=100000.0)
-    with st.sidebar.expander("🧯 Inertización"):
-        volumen_libre = st.number_input("Volumen libre [m³]", value=5000.0)
-        C_esp = st.number_input("Consumo específico N₂ [kWh/m³]", value=0.2)
-        n_renov = st.number_input("N° de renovaciones", value=2)
-
-    calcular = st.form_submit_button("🧮 Calcular y generar PDF")
-
-if calcular:
-    if temp_fin < temp_ini:
-        st.warning("⚠️ La temperatura final no puede ser menor que la inicial.")
-    else:
-        resultados = {}
-        res1 = calcular_modulo_1(V_tanque, densidad_lodo)
-        masa_total = res1["masa_total_lodo"]
-        resultados["🔹 Módulo 1 – Succión"] = {"Masa total de lodo [kg]": f"{masa_total:,.0f}"}
-
-        masa_solidos = masa_total * (sol_inorg_pct + sol_org_pct) / 100
-        res2 = calcular_modulo_2(Q_recirc, 900, Cp_aceite, temp_ini, temp_fin, masa_solidos, eficiencia_corte)
-        resultados["🔹 Módulo 2 – Recirculación"] = {
-            "Energía requerida [kW]": f"{res2['Q_kJ_h']/1000:.2f}",
-            "Underflow al decanter [kg/h]": f"{res2['m_underflow']:,.0f}",
-            "Overflow a boquillas [kg/h]": f"{res2['m_overflow']:,.0f}"
-        }
-
-        res3 = calcular_modulo_3(res2["m_overflow"], Cp_lodo, deltaT_boquillas)
-        resultados["🔹 Módulo 3 – Boquillas"] = {
-            "Energía térmica [kW]": f"{res3['Q_kJ_h']/1000:.2f}",
-            "Kerosene requerido [L/h]": f"{res3['V_kerosene_L']:,.0f}"
-        }
-
-        omega = 2 * math.pi * rpm_tornillo / 60
-        res4 = calcular_modulo_4(mu_lodo, rho_s, rho_f, omega, 0.25, 0.1, 0.18, res2["m_underflow"], 1.5)
-        resultados["🔹 Módulo 4 – Decanter"] = {
-            "Diámetro límite [µm]": f"{res4['d_lim_m']*1e6:.2f}",
-            "Tiempo de residencia [h]": f"{res4['t_res_h']:.2f}"
-        }
-
-        res4b = calcular_modulo_4b(radio_centrifuga, rpm_centrifuga)
-        resultados["🔹 Módulo 4B – Centrífuga"] = {
-            "Aceleración [m/s²]": f"{res4b['aceleracion_m_s2']:.0f}"
-        }
-
-        res5 = calcular_modulo_5(rho_agua, rho_aceite, 9.81, radio_gota, mu_agua)
-        resultados["🔹 Módulo 5 – Desnatado"] = {
-            "Velocidad de ascenso [mm/s]": f"{res5['vel_ascenso_m_s']*1000:.4f}"
-        }
-
-        res6 = calcular_modulo_6(volumen_libre, C_esp, n_renov)
-        resultados["🔹 Módulo 6 – Inertización"] = {
-            "Volumen N₂ [m³]": f"{res6['volumen_N2_m3']:,.0f}",
-            "Potencia estimada [kW]": f"{res6['potencia_kW']:.2f}"
-        }
-
-        m_agua = tiempo_lavado * caudal_agua * 1000
-        deltaT = temp_fin - temp_ini
-        res7 = calcular_modulo_7(m_agua, 4.18, deltaT, volumen_ventilado, V_tanque)
-        resultados["🔹 Módulo 7 – Lavado y Ventilación"] = {
-            "Energía para calentar agua [kW]": f"{res7['Q_kJ']/1000:.1f}",
-            "Renovaciones necesarias": f"{res7['n_renovaciones']:.1f}"
-        }
-
-        for mod, datos in resultados.items():
-            st.subheader(mod)
-            with st.expander("📘 Explicación y fórmulas"):
-                st.markdown(explicaciones.get(mod, "Sin explicación disponible."))
-                for formula in ecuaciones.get(mod, []):
-                    st.latex(formula)
-            for k, v in datos.items():
-                st.write(f"• {k}: **{v}**")
-
- # Generar PDF después de mostrar resultados
-        
-        pdf_bytes_data = generar_pdf_pedagogico(resultados, ecuaciones, explicaciones)
-        if isinstance(pdf_bytes_data, bytes) and len(pdf_bytes_data) > 0:
-            st.download_button(
-                "📥 Descargar informe PDF",
-                data=pdf_bytes_data,
-                file_name="informe_blabo.pdf",
-                mime="application/pdf"
-            )
-        else:
-            st.error("❌ No se pudo generar el informe PDF.")
 
 
 

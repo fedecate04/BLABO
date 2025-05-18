@@ -72,6 +72,9 @@ def calcular_RCF(r, rpm):
 def calcular_stokes(rho_f, rho_p, g, r, mu):
     return (2 / 9) * ((rho_p - rho_f) * g * r**2) / mu
 
+# -------------------------------
+# INTERFAZ - PARÁMETROS DE ENTRADA
+# -------------------------------
 st.sidebar.header("🔧 Parámetros de Entrada")
 
 with st.sidebar.expander("🛢️ Tanque y características del lodo"):
@@ -111,105 +114,57 @@ with st.sidebar.expander("🌊 Skimming"):
     mu_agua = st.number_input("Viscosidad agua [Pa·s]", value=0.001)
     r_gota = st.number_input("Radio gota aceite [m]", value=30e-6)
 
-
 # -------------------------------
-# CÁLCULOS Y RESULTADOS
+# VALIDACIÓN DE PARÁMETROS Y SIMULACIÓN
 # -------------------------------
-if st.sidebar.button("📊 Ejecutar simulación"):
-    resultados = {}
-    explicaciones = {}
+if V_tanque <= 0 or H_lodo <= 0 or densidad_lodo <= 0:
+    st.error("⚠️ El volumen del tanque, la altura del lodo y la densidad deben ser mayores a cero para ejecutar la simulación.")
+else:
+    if st.button("📊 Ejecutar simulación"):
+        st.subheader("📈 Resultados de la Simulación")
+        with st.spinner("Calculando resultados..."):
+            resultados = {}
+            explicaciones = {}
+            observaciones = []
 
-    V_lodo, m_lodo = calcular_masa_total_lodo(V_tanque, H_lodo, densidad_lodo)
-    resultados["Masa total de lodo"] = f"{m_lodo:,.0f} kg"
-    explicaciones["Masa total de lodo"] = "Cálculo por volumen y densidad."
+            V_lodo, m_lodo = calcular_masa_total_lodo(V_tanque, H_lodo, densidad_lodo)
+            Q = calcular_energia_calentamiento(m_lodo, Cp_lodo, Ti, Tf)
+            Fv = calcular_flujo_vapor(Q, lambda_v)
+            m_solidos = m_lodo * (sol_inorg + sol_org) / 100
+            under, over = calcular_separacion(m_solidos, eficiencia_corte)
+            d50 = calcular_diametro_corte_hidrociclon(mu, rhop, rhof, deltaP, D_ciclon)
+            t_res = calcular_residencia_decanter(V_decanter, Q_decanter)
+            rcf, a = calcular_RCF(r, rpm)
+            v_stokes = calcular_stokes(rho_agua, rho_aceite, 9.81, r_gota, mu_agua)
 
-    Q = calcular_energia_calentamiento(m_lodo, Cp_lodo, Ti, Tf)
-    resultados["Energía de calentamiento"] = f"{Q / 1000:.2f} kW"
-    explicaciones["Energía de calentamiento"] = "Energía para calentar el lodo (Q = m·Cp·ΔT)."
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Masa total de lodo", f"{m_lodo:,.0f} kg")
+                st.metric("Energía de calentamiento", f"{Q/1000:.2f} kW")
+                st.metric("Flujo de vapor", f"{Fv:,.1f} kg/h")
+                st.metric("Underflow (decanter)", f"{under:,.0f} kg")
+            with col2:
+                st.metric("Overflow (boquillas)", f"{over:,.0f} kg")
+                st.metric("d₅₀ ciclón", f"{d50*1e6:.2f} µm")
+                st.metric("Residencia decanter", f"{t_res:.2f} h")
+                st.metric("Velocidad de ascenso (Stokes)", f"{v_stokes*1000:.4f} mm/s")
 
-    Fv = calcular_flujo_vapor(Q, lambda_v)
-    resultados["Flujo de vapor"] = f"{Fv:,.1f} kg/h"
-    explicaciones["Flujo de vapor"] = "Vapor necesario en H-01 / H-02 para calefacción."
+            if t_res > 2:
+                observaciones.append("🔍 Tiempo de residencia elevado en el decanter: revisar eficiencia de sedimentación.")
+            if v_stokes < 0.5e-3:
+                observaciones.append("🔍 Baja velocidad de ascenso: posible emulsión o gotas muy pequeñas.")
 
-    m_solidos = m_lodo * (sol_inorg + sol_org) / 100
-    under, over = calcular_separacion(m_solidos, eficiencia_corte)
-    resultados["Underflow (decanter)"] = f"{under:,.0f} kg"
-    resultados["Overflow (boquillas)"] = f"{over:,.0f} kg"
-    explicaciones["Separación por ciclones"] = "Corte de sólidos entre under y overflow."
+            if observaciones:
+                st.warning("\n".join(observaciones))
 
-    d50 = calcular_diametro_corte_hidrociclon(mu, rhop, rhof, deltaP, D_ciclon)
-    resultados["d₅₀ ciclón"] = f"{d50 * 1e6:.2f} µm"
-    explicaciones["d₅₀ ciclón"] = "Diámetro de partícula separable (hidrociclón)."
-
-    t_res = calcular_residencia_decanter(V_decanter, Q_decanter)
-    resultados["Residencia decanter"] = f"{t_res:.2f} h"
-    explicaciones["Residencia decanter"] = "Tiempo necesario para sedimentación efectiva."
-
-    rcf, a = calcular_RCF(r, rpm)
-    resultados["RCF centrífuga"] = f"{rcf:.1f} g"
-    resultados["Aceleración centrífuga"] = f"{a:.0f} m/s²"
-    explicaciones["Centrífuga"] = "Separación por fuerza centrífuga."
-
-    v_stokes = calcular_stokes(rho_agua, rho_aceite, 9.81, r_gota, mu_agua)
-    resultados["Velocidad de ascenso aceite"] = f"{v_stokes*1000:.4f} mm/s"
-    explicaciones["Skimming"] = "Velocidad de separación por flotación (ley de Stokes)."
-
-    st.subheader("📈 Resultados de simulación")
-    for k, v in resultados.items():
-        st.write(f"**{k}:** {v}")
-
-    with st.expander("📘 Explicaciones por módulo"):
-        for k, v in explicaciones.items():
-            st.markdown(f"**{k}:** {v}")
-
-    # -------------------------------
-    # EXPORTACIÓN A PDF
-    # -------------------------------
-    def generar_pdf(resultados, explicaciones):
-        pdf = FPDF()
-        pdf.add_page()
-
-        try:
-            pdf.image("logoutn.png", x=10, y=8, w=30)
-        except:
-            pass
-
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "Informe de Simulación - Sistema BLABO®", ln=True, align="C")
-        pdf.ln(20)
-        pdf.set_font("Arial", "", 11)
-        pdf.multi_cell(0, 8, "Este informe presenta los resultados obtenidos de la simulación del sistema BLABO®, incluyendo análisis energéticos, mecánicos y separativos para cada módulo del proceso.")
-
-        pdf.ln(5)
-        for k, v in resultados.items():
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, k, ln=True)
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(0, 8, f"Resultado: {v}", ln=True)
-            if k in explicaciones:
-                pdf.multi_cell(0, 8, f"Explicación: {explicaciones[k]}")
-            pdf.ln(2)
-
-        # Diagrama de flujo al final
-        try:
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "Diagrama del Sistema BLABO®", ln=True, align="C")
-            pdf.image("diagrama de flujo.png", x=10, y=30, w=190)
-        except:
-            pass
-
-        pdf.set_y(-15)
-        pdf.set_font("Arial", "I", 8)
-        pdf.cell(0, 10, "Simulador BLABO - UTN-FRN", 0, 0, "C")
-        return BytesIO(pdf.output(dest="S").encode("latin1", "ignore"))
-
-    st.download_button(
-        label="📥 Descargar informe PDF",
-        data=generar_pdf(resultados, explicaciones),
-        file_name="informe_blabo.pdf",
-        mime="application/pdf"
-    )
+            st.markdown("---")
+            st.markdown("**📘 Explicaciones de resultados:**")
+            st.latex(r"Q = m \cdot C_p \cdot \Delta T")
+            st.markdown("Energía térmica para elevar la temperatura del lodo.")
+            st.latex(r"d_{50} = \sqrt{\frac{18 \mu}{(\rho_p - \rho_f) \Delta P}} \cdot D")
+            st.markdown("Diámetro de corte de partículas separadas en el ciclón.")
+            st.latex(r"v = \frac{2}{9} \cdot \frac{(\rho_p - \rho_f) g r^2}{\mu}")
+            st.markdown("Velocidad de separación del aceite por flotación según Stokes.")
 
 
 

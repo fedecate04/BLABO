@@ -2,6 +2,7 @@
 # Autor: Federico Catereniuc | UTN-FRN
 # Desarrollado para tesis de Ingeniería Química
 
+pip install streamlit fpdf
 import streamlit as st
 import math
 from io import BytesIO

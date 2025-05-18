@@ -31,7 +31,7 @@ hr {
 """, unsafe_allow_html=True)
 
 # Logo y diagrama en interfaz
-st.image("utnlogo.png", width=120)
+st.image("logoutn.png", width=120)
 st.image("diagramadeflujo.png", caption="Diagrama del sistema de limpieza automatizada BLABO®", use_column_width=True)
 
 st.markdown("""

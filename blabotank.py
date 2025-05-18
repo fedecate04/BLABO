@@ -165,7 +165,7 @@ if st.sidebar.button("📊 Ejecutar simulación"):
         pdf.add_page()
 
         try:
-            pdf.image("utnlogo.png", x=10, y=8, w=30)
+            pdf.image("logoutn.png", x=10, y=8, w=30)
         except:
             pass
 

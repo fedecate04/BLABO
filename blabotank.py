@@ -1,8 +1,6 @@
 # Simulador Profesional de Limpieza de Tanques - Sistema BLABO®
 # Autor: Federico Catereniuc | UTN-FRN
-# Desarrollado para tesis de Ingeniería Química
 
-pip install streamlit fpdf
 import streamlit as st
 import math
 from io import BytesIO
@@ -32,6 +30,8 @@ hr {
 </style>
 """, unsafe_allow_html=True)
 
+# Logo y diagrama en interfaz
+st.image("utnlogo.png", width=120)
 st.image("diagramadeflujo.png", caption="Diagrama del sistema de limpieza automatizada BLABO®", use_column_width=True)
 
 st.markdown("""
@@ -108,7 +108,7 @@ rho_aceite = st.sidebar.number_input("Densidad aceite [kg/m³]", value=850.0)
 mu_agua = st.sidebar.number_input("Viscosidad agua [Pa·s]", value=0.001)
 
 # -------------------------------
-# CÁLCULOS
+# CÁLCULOS Y RESULTADOS
 # -------------------------------
 if st.sidebar.button("📊 Ejecutar simulación"):
     resultados = {}
@@ -163,12 +163,19 @@ if st.sidebar.button("📊 Ejecutar simulación"):
     def generar_pdf(resultados, explicaciones):
         pdf = FPDF()
         pdf.add_page()
+
+        try:
+            pdf.image("utnlogo.png", x=10, y=8, w=30)
+        except:
+            pass
+
         pdf.set_font("Arial", "B", 16)
         pdf.cell(0, 10, "Informe de Simulación - Sistema BLABO®", ln=True, align="C")
-        pdf.ln(10)
+        pdf.ln(20)
         pdf.set_font("Arial", "", 11)
         pdf.multi_cell(0, 8, "Este informe presenta los resultados obtenidos de la simulación del sistema BLABO®, incluyendo análisis energéticos, mecánicos y separativos para cada módulo del proceso.")
 
+        pdf.ln(5)
         for k, v in resultados.items():
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, k, ln=True)
@@ -178,10 +185,18 @@ if st.sidebar.button("📊 Ejecutar simulación"):
                 pdf.multi_cell(0, 8, f"Explicación: {explicaciones[k]}")
             pdf.ln(2)
 
+        # Diagrama de flujo al final
+        try:
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(0, 10, "Diagrama del Sistema BLABO®", ln=True, align="C")
+            pdf.image("diagramadeflujo.png", x=10, y=30, w=190)
+        except:
+            pass
+
         pdf.set_y(-15)
         pdf.set_font("Arial", "I", 8)
         pdf.cell(0, 10, "Simulador BLABO - UTN-FRN", 0, 0, "C")
-
         return BytesIO(pdf.output(dest="S").encode("latin1", "ignore"))
 
     st.download_button(
@@ -190,7 +205,6 @@ if st.sidebar.button("📊 Ejecutar simulación"):
         file_name="informe_blabo.pdf",
         mime="application/pdf"
     )
-
 
 
 

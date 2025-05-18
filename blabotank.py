@@ -396,7 +396,6 @@ if calcular:
  # Generar PDF después de mostrar resultados
         
         pdf_bytes_data = generar_pdf_pedagogico(resultados, ecuaciones, explicaciones)
-
         if isinstance(pdf_bytes_data, bytes) and len(pdf_bytes_data) > 0:
             st.download_button(
                 "📥 Descargar informe PDF",

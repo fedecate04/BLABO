@@ -178,34 +178,60 @@ def limpiar_texto(texto):
 # -------------------------------
 
 def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
+    def limpiar_para_pdf(x):
+        if isinstance(x, str):
+            x = x.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
+            x = x.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
+            return unicodedata.normalize("NFKD", x).encode("latin-1", "ignore").decode("latin-1")
+        return str(x)
+
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Informe de Simulación – Sistema BLABO®", ln=True, align="C")
+    pdf.cell(0, 10, limpiar_para_pdf("Informe de Simulación - Sistema BLABO"), ln=True, align="C")
     pdf.ln(10)
+
     pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 8, limpiar_texto("Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo del proceso."))
+    pdf.multi_cell(0, 8, limpiar_para_pdf(
+        "Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."
+    ))
     pdf.ln(5)
 
     for modulo, datos in resultados.items():
         pdf.set_font("Arial", "B", 12)
         pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, limpiar_texto(modulo), ln=True, fill=True)
+        pdf.cell(0, 10, limpiar_para_pdf(modulo), ln=True, fill=True)
+
         pdf.set_font("Arial", "I", 11)
-        pdf.multi_cell(0, 8, limpiar_texto(explicaciones.get(modulo, "Sin explicación disponible.")))
+        explicacion = explicaciones.get(modulo, "Sin explicación disponible.")
+        pdf.multi_cell(0, 8, limpiar_para_pdf(explicacion))
         pdf.ln(1)
+
         pdf.set_font("Arial", "", 11)
         for eq in ecuaciones.get(modulo, []):
-            pdf.multi_cell(0, 8, limpiar_texto(eq))
+            pdf.multi_cell(0, 8, limpiar_para_pdf(eq))
         pdf.ln(2)
-        pdf.set_font("Arial", "", 11)
+
         for key, val in datos.items():
-            pdf.cell(0, 8, limpiar_texto(f"- {key}: {val}"), ln=True)
+            pdf.cell(0, 8, limpiar_para_pdf(f"- {key}: {val}"), ln=True)
         pdf.ln(3)
 
-    pdf_bytes = pdf.output(dest="S").encode("latin1", "ignore")
-    return pdf_bytes
+    pdf.set_y(-15)
+    pdf.set_font("Arial", "I", 8)
+    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automáticamente"), 0, 0, "C")
+
+    try:
+        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="ignore")
+        return BytesIO(pdf_bytes).getvalue()
+    except Exception as e:
+        fallback = FPDF()
+        fallback.add_page()
+        fallback.set_font("Arial", "B", 12)
+        fallback.cell(0, 10, "Error al generar el PDF original.", ln=True)
+        fallback.cell(0, 10, f"Detalle: {str(e)}", ln=True)
+        return fallback.output(dest="S").encode("latin-1", "replace")
+
 
 # -------------------------------
 # EXPLICACIONES PEDAGÓGICAS POR MÓDULO

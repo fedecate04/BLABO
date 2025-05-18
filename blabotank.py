@@ -393,10 +393,13 @@ if calcular:
             for k, v in datos.items():
                 st.write(f"• {k}: **{v}**")
 
-       pdf_bytes = BytesIO()
-       pdf_bytes.write(generar_pdf_pedagogico(resultados, ecuaciones, explicaciones))
-       pdf_bytes.seek(0)
-       st.download_button("📥 Descargar informe PDF", data=pdf_bytes, file_name="informe_blabo.pdf", mime="application/pdf")
+pdf_bytes = BytesIO()
+pdf_bytes.write(generar_pdf_pedagogico(resultados, ecuaciones, explicaciones))
+pdf_bytes.seek(0)
+st.download_button("📥 Descargar informe PDF", data=pdf_bytes, file_name="informe_blabo.pdf", mime="application/pdf")
+
+
+       
 
             
 

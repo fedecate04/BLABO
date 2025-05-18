@@ -3,8 +3,7 @@ import math
 from fpdf import FPDF
 from io import BytesIO
 import unicodedata
-pip install matplotlib
-import matplotlib.pyplot as plt
+
 
 # -------------------------------
 # CONFIGURACION VISUAL
@@ -125,91 +124,20 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
 # GRAFICO DE ENERGIA POR MODULO
 # -------------------------------
 def graficar_consumos(resultados):
-    modulos = []
-    consumos = []
+    import pandas as pd
+    data = []
     for k, v in resultados.items():
         for param, val in v.items():
             if "energía" in param.lower() or "potencia" in param.lower():
                 try:
                     valor = float(val.replace(",", "").split()[0])
-                    modulos.append(k)
-                    consumos.append(valor)
+                    data.append({"Módulo": k, "Consumo_kW": valor})
                 except:
                     pass
-    if modulos:
-        fig, ax = plt.subplots()
-        ax.bar(modulos, consumos, color='#00bcd4')
-        ax.set_ylabel("Energía / Potencia [kW]")
-        ax.set_title("Consumo energético por módulo")
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-        st.pyplot(fig)
+    if data:
+        df = pd.DataFrame(data).set_index("Módulo")
+        st.bar_chart(df)
 
-# -------------------------------
-# GRAFICO DE ENERGIA POR MODULO
-# -------------------------------
-def graficar_consumos(resultados):
-    modulos = []
-    consumos = []
-    for k, v in resultados.items():
-        for param, val in v.items():
-            if "energía" in param.lower() or "potencia" in param.lower():
-                try:
-                    valor = float(val.replace(",", "").split()[0])
-                    modulos.append(k)
-                    consumos.append(valor)
-                except:
-                    pass
-    if modulos:
-        fig, ax = plt.subplots()
-        ax.bar(modulos, consumos, color='#00bcd4')
-        ax.set_ylabel("Energía / Potencia [kW]")
-        ax.set_title("Consumo energético por módulo")
-        plt.xticks(rotation=45, ha="right")
-        plt.tight_layout()
-        st.pyplot(fig)
-
-# -------------------------------
-# FUNCIONES AUXILIARES
-# -------------------------------
-
-def limpiar_texto(texto):
-    if isinstance(texto, str):
-        texto = texto.replace("–", "-").replace("—", "-").replace("“", '"').replace("”", '"')
-        texto = texto.replace("•", "-").replace("🔹", "-").replace("🧮", "").replace("°", " grados")
-        return unicodedata.normalize("NFKD", texto).encode("latin-1", "ignore").decode("latin-1")
-    return texto
-
-def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "Informe de Simulación – Sistema BLABO®", ln=True, align="C")
-    pdf.ln(10)
-    pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 8, limpiar_texto("Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo del proceso."))
-    pdf.ln(5)
-
-    for modulo, datos in resultados.items():
-        pdf.set_font("Arial", "B", 12)
-        pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, limpiar_texto(modulo), ln=True, fill=True)
-        pdf.set_font("Arial", "I", 11)
-        pdf.multi_cell(0, 8, limpiar_texto(explicaciones.get(modulo, "Sin explicación disponible.")))
-        pdf.ln(1)
-        pdf.set_font("Arial", "", 11)
-        for eq in ecuaciones.get(modulo, []):
-            pdf.multi_cell(0, 8, limpiar_texto(eq))
-        pdf.ln(2)
-        for key, val in datos.items():
-            pdf.cell(0, 8, limpiar_texto(f"- {key}: {val}"), ln=True)
-        pdf.ln(3)
-
-    pdf.set_y(-15)
-    pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, "Simulador BLABO® – UTN-FRN – Generado automáticamente", 0, 0, "C")
-    return pdf.output(dest="S").encode("latin1", "ignore")
 
 # -------------------------------
 # LIMPIEZA DE TEXTO

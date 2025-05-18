@@ -393,7 +393,7 @@ if calcular:
             for k, v in datos.items():
                 st.write(f"• {k}: **{v}**")
 
-        # Generar PDF después de mostrar resultados
+ # Generar PDF después de mostrar resultados
         pdf_bytes_data = generar_pdf_pedagogico(resultados, ecuaciones, explicaciones)
 
         if isinstance(pdf_bytes_data, bytes) and len(pdf_bytes_data) > 0:

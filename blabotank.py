@@ -393,17 +393,19 @@ if calcular:
             for k, v in datos.items():
                 st.write(f"• {k}: **{v}**")
 
-pdf_bytes_data = generar_pdf_pedagogico(resultados, ecuaciones, explicaciones)
+        # Generar PDF después de mostrar resultados
+        pdf_bytes_data = generar_pdf_pedagogico(resultados, ecuaciones, explicaciones)
 
-if isinstance(pdf_bytes_data, bytes) and len(pdf_bytes_data) > 0:
-    st.download_button(
-        "📥 Descargar informe PDF",
-        data=pdf_bytes_data,
-        file_name="informe_blabo.pdf",
-        mime="application/pdf"
-    )
-else:
-    st.error("❌ No se pudo generar el informe PDF.")
+        if isinstance(pdf_bytes_data, bytes) and len(pdf_bytes_data) > 0:
+            st.download_button(
+                "📥 Descargar informe PDF",
+                data=pdf_bytes_data,
+                file_name="informe_blabo.pdf",
+                mime="application/pdf"
+            )
+        else:
+            st.error("❌ No se pudo generar el informe PDF.")
+
 
 
 

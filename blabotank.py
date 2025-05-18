@@ -116,7 +116,8 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
         pdf.cell(0, 10, limpiar_para_pdf(modulo), ln=True, fill=True)
 
         pdf.set_font("Arial", "I", 11)
-        pdf.multi_cell(0, 8, limpiar_para_pdf(explicaciones.get(modulo, "Sin explicación disponible.")))
+        explicacion = explicaciones.get(modulo, "Sin explicación disponible.")
+        pdf.multi_cell(0, 8, limpiar_para_pdf(explicacion))
         pdf.ln(1)
 
         pdf.set_font("Arial", "", 11)
@@ -130,13 +131,18 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
 
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automaticamente"), 0, 0, "C")
+    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automáticamente"), 0, 0, "C")
 
     try:
-        return pdf.output(dest="S").encode("latin-1", "replace")
+        pdf_bytes = pdf.output(dest="S").encode("latin-1", "replace")
+        return pdf_bytes
     except Exception as e:
-        st.error(f"❌ Error al generar el PDF: {e}")
-        return b""
+        fallback = FPDF()
+        fallback.add_page()
+        fallback.set_font("Arial", "B", 12)
+        fallback.cell(0, 10, "Error al generar el PDF original.", ln=True)
+        fallback.cell(0, 10, f"Detalle: {str(e)}", ln=True)
+        return fallback.output(dest="S").encode("latin-1", "replace")
 
 # -------------------------------
 # GRAFICO DE ENERGIA POR MODULO

@@ -72,40 +72,45 @@ def calcular_RCF(r, rpm):
 def calcular_stokes(rho_f, rho_p, g, r, mu):
     return (2 / 9) * ((rho_p - rho_f) * g * r**2) / mu
 
-# -------------------------------
-# PARÁMETROS DE ENTRADA
-# -------------------------------
 st.sidebar.header("🔧 Parámetros de Entrada")
 
-V_tanque = st.sidebar.number_input("Volumen del tanque [m³]", value=10000.0)
-H_lodo = st.sidebar.slider("Altura de lodo [m]", 0.0, 20.0, 4.0)
-densidad_lodo = st.sidebar.number_input("Densidad del lodo [kg/m³]", value=950.0)
+with st.sidebar.expander("🛢️ Tanque y características del lodo"):
+    V_tanque = st.number_input("Volumen del tanque [m³]", value=10000.0)
+    H_lodo = st.slider("Altura de lodo [m]", 0.0, 20.0, 4.0)
+    densidad_lodo = st.number_input("Densidad del lodo [kg/m³]", value=950.0)
+    Cp_lodo = st.number_input("Cp del lodo [kJ/kg·K]", value=2.1)
 
-Ti = st.sidebar.number_input("Temperatura inicial [°C]", value=20.0)
-Tf = st.sidebar.number_input("Temperatura final [°C]", value=80.0)
-Cp_lodo = st.sidebar.number_input("Cp del lodo [kJ/kg·K]", value=2.1)
+with st.sidebar.expander("🌡️ Condiciones térmicas"):
+    Ti = st.number_input("Temperatura inicial [°C]", value=20.0)
+    Tf = st.number_input("Temperatura final [°C]", value=80.0)
+    lambda_v = st.number_input("Calor latente vapor [kJ/kg]", value=2257.0)
 
-sol_inorg = st.sidebar.number_input("Sólidos inorgánicos [%]", value=10.0)
-sol_org = st.sidebar.number_input("Sólidos orgánicos [%]", value=5.0)
-eficiencia_corte = st.sidebar.number_input("Eficiencia ciclones [%]", value=95.0)
+with st.sidebar.expander("🧪 Composición del lodo"):
+    sol_inorg = st.number_input("Sólidos inorgánicos [%]", value=10.0)
+    sol_org = st.number_input("Sólidos orgánicos [%]", value=5.0)
 
-mu = st.sidebar.number_input("Viscosidad lodo [Pa·s]", value=0.1)
-rhop = st.sidebar.number_input("Densidad partículas [kg/m³]", value=2650.0)
-rhof = st.sidebar.number_input("Densidad fluido [kg/m³]", value=900.0)
-deltaP = st.sidebar.number_input("ΔP ciclón [Pa]", value=150000.0)
-D_ciclon = st.sidebar.number_input("Diámetro ciclón [m]", value=0.1)
+with st.sidebar.expander("🌀 Ciclones / Hidrociclón"):
+    eficiencia_corte = st.number_input("Eficiencia ciclones [%]", value=95.0)
+    mu = st.number_input("Viscosidad lodo [Pa·s]", value=0.1)
+    rhof = st.number_input("Densidad fluido [kg/m³]", value=900.0)
+    rhop = st.number_input("Densidad partículas [kg/m³]", value=2650.0)
+    deltaP = st.number_input("ΔP ciclón [Pa]", value=150000.0)
+    D_ciclon = st.number_input("Diámetro ciclón [m]", value=0.1)
 
-lambda_v = st.sidebar.number_input("Calor latente vapor [kJ/kg]", value=2257.0)
-Q_decanter = st.sidebar.number_input("Caudal al decanter [m³/h]", value=15.0)
-V_decanter = st.sidebar.number_input("Volumen útil decanter [m³]", value=8.0)
+with st.sidebar.expander("🧭 Decanter"):
+    Q_decanter = st.number_input("Caudal al decanter [m³/h]", value=15.0)
+    V_decanter = st.number_input("Volumen útil decanter [m³]", value=8.0)
 
-rpm = st.sidebar.number_input("RPM centrífuga", value=5000)
-r = st.sidebar.number_input("Radio centrífuga [m]", value=0.15)
+with st.sidebar.expander("🧲 Centrífuga"):
+    rpm = st.number_input("RPM centrífuga", value=5000)
+    r = st.number_input("Radio centrífuga [m]", value=0.15)
 
-r_gota = st.sidebar.number_input("Radio gota aceite [m]", value=30e-6)
-rho_agua = st.sidebar.number_input("Densidad agua [kg/m³]", value=1000.0)
-rho_aceite = st.sidebar.number_input("Densidad aceite [kg/m³]", value=850.0)
-mu_agua = st.sidebar.number_input("Viscosidad agua [Pa·s]", value=0.001)
+with st.sidebar.expander("🌊 Skimming"):
+    rho_agua = st.number_input("Densidad agua [kg/m³]", value=1000.0)
+    rho_aceite = st.number_input("Densidad aceite [kg/m³]", value=850.0)
+    mu_agua = st.number_input("Viscosidad agua [Pa·s]", value=0.001)
+    r_gota = st.number_input("Radio gota aceite [m]", value=30e-6)
+
 
 # -------------------------------
 # CÁLCULOS Y RESULTADOS

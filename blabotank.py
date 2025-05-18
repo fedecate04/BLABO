@@ -102,12 +102,11 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, limpiar_para_pdf("Informe de Simulación – Sistema BLABO®"), ln=True, align="C")
+    pdf.cell(0, 10, limpiar_para_pdf("Informe de Simulación - Sistema BLABO"), ln=True, align="C")
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
     pdf.multi_cell(0, 8, limpiar_para_pdf(
-        "Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, "
-        "incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."
+        "Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."
     ))
     pdf.ln(5)
 
@@ -131,10 +130,10 @@ def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
 
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO® – UTN-FRN – Generado automáticamente"), 0, 0, "C")
+    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO - UTN-FRN - Generado automaticamente"), 0, 0, "C")
 
     try:
-        return pdf.output(dest="S").encode("latin-1", "ignore")
+        return pdf.output(dest="S").encode("latin-1", "replace")
     except Exception as e:
         st.error(f"❌ Error al generar el PDF: {e}")
         return b""
@@ -156,7 +155,6 @@ def graficar_consumos(resultados):
     if data:
         df = pd.DataFrame(data).set_index("Módulo")
         st.bar_chart(df)
-
 
 # -------------------------------
 # LIMPIEZA DE TEXTO

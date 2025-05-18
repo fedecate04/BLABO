@@ -90,35 +90,54 @@ def safe_str(x):
         return ""
 
 def generar_pdf_pedagogico(resultados, ecuaciones, explicaciones):
+    def limpiar_para_pdf(x):
+        try:
+            if isinstance(x, str):
+                return limpiar_texto(x)
+            return limpiar_texto(str(x))
+        except Exception:
+            return "?"
+
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, safe_str("Informe de Simulación – Sistema BLABO®"), ln=True, align="C")
+    pdf.cell(0, 10, limpiar_para_pdf("Informe de Simulación – Sistema BLABO®"), ln=True, align="C")
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
-    pdf.multi_cell(0, 8, safe_str("Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."))
+    pdf.multi_cell(0, 8, limpiar_para_pdf(
+        "Este informe presenta los resultados obtenidos de la simulación del sistema de limpieza de tanques BLABO®, "
+        "incluyendo las ecuaciones utilizadas y una explicación pedagógica para cada módulo."
+    ))
     pdf.ln(5)
 
     for modulo, datos in resultados.items():
         pdf.set_font("Arial", "B", 12)
         pdf.set_fill_color(200, 220, 255)
-        pdf.cell(0, 10, safe_str(modulo), ln=True, fill=True)
+        pdf.cell(0, 10, limpiar_para_pdf(modulo), ln=True, fill=True)
+
         pdf.set_font("Arial", "I", 11)
-        pdf.multi_cell(0, 8, safe_str(explicaciones.get(modulo, "Sin explicación disponible.")))
+        pdf.multi_cell(0, 8, limpiar_para_pdf(explicaciones.get(modulo, "Sin explicación disponible.")))
         pdf.ln(1)
+
         pdf.set_font("Arial", "", 11)
         for eq in ecuaciones.get(modulo, []):
-            pdf.multi_cell(0, 8, safe_str(eq))
+            pdf.multi_cell(0, 8, limpiar_para_pdf(eq))
         pdf.ln(2)
+
         for key, val in datos.items():
-            pdf.cell(0, 8, safe_str(f"- {key}: {val}"), ln=True)
+            pdf.cell(0, 8, limpiar_para_pdf(f"- {key}: {val}"), ln=True)
         pdf.ln(3)
 
     pdf.set_y(-15)
     pdf.set_font("Arial", "I", 8)
-    pdf.cell(0, 10, safe_str("Simulador BLABO® – UTN-FRN – Generado automáticamente"), 0, 0, "C")
-    return pdf.output(dest="S").encode("latin-1", "ignore")
+    pdf.cell(0, 10, limpiar_para_pdf("Simulador BLABO® – UTN-FRN – Generado automáticamente"), 0, 0, "C")
+
+    try:
+        return pdf.output(dest="S").encode("latin-1", "ignore")
+    except Exception as e:
+        st.error(f"❌ Error al generar el PDF: {e}")
+        return b""
 
 # -------------------------------
 # GRAFICO DE ENERGIA POR MODULO
